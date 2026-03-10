@@ -174,7 +174,6 @@ footer span{color:var(--rose-light)}
 <body>
 <div class="cursor" id="cursor"></div>
 <div class="cursor-ring" id="cursorRing"></div>
-
 <section class="hero">
   <div class="hero-glow"></div><div class="grain"></div>
   <div class="hero-line"></div><div class="hero-line-b"></div>
@@ -185,7 +184,6 @@ footer span{color:var(--rose-light)}
     <div class="hero-cta"><a href="#reservar" class="btn-primary">Reservar cita</a></div>
   </div>
 </section>
-
 <section class="booking-section" id="reservar">
   <div class="reveal">
     <p class="s-eyebrow">Reservaciones</p>
@@ -196,6 +194,10 @@ footer span{color:var(--rose-light)}
     <h3 class="loc-title">¿Desde dónde nos visitas?</h3>
     <p class="loc-desc">Comparte tu ubicación y te recomendamos la sucursal más cercana, o elige tú misma en el mapa.</p>
     <button class="btn-outline" id="btnGeo">Usar mi ubicación</button>
+    <div id="geoErr" style="display:none;margin-top:.9rem;padding:.8rem 1rem;background:#1a0510;border:1px solid var(--rose);font-size:.72rem;color:var(--rose-light);line-height:1.8;text-align:left">
+      <strong style="color:var(--white);display:block;margin-bottom:.3rem">⚠️ Ubicación no disponible</strong>
+      En iPhone: <strong style="color:var(--white)">Ajustes → Privacidad y seguridad → Servicios de localización → Safari → Al usar la app</strong>. Luego recarga.
+    </div>
     <button class="btn-skip" id="btnSkip">Ver todas las sucursales →</button>
   </div>
   <div class="map-wrapper reveal" id="mapWrapper">
@@ -317,7 +319,7 @@ footer span{color:var(--rose-light)}
             <p style="color:var(--text-mid);font-size:.7rem;margin-top:.9rem;line-height:1.7">Envía tu comprobante a <span style="color:var(--rose-light)">pagos@unassalonmas.com</span></p>
           </div>
           <div class="secure">🔒 Pago seguro con encriptación SSL 256-bit</div>
-          <div class="demo-note"><span style="color:var(--rose-light);flex-shrink:0">ℹ️</span><span>Modo <strong style="color:var(--rose-light)">demo</strong> — ningún cargo real será procesado.</span></div>
+          <div class="demo-note"><span style="color:var(--rose-light);flex-shrink:0">ℹ️</span><span>Modo <strong style="color:var(--rose-light)">demo</strong> — ningún cargo real será procesado. Conecta tu cuenta de <strong style="color:var(--rose-light)">Stripe</strong> para activar pagos reales.</span></div>
         </div>
         <div class="actions">
           <button class="btn-back" id="s4Back">← Atrás</button>
@@ -337,7 +339,7 @@ footer span{color:var(--rose-light)}
 <footer>&copy; 2026 <span>Uñas Salón y Más</span> &nbsp;·&nbsp; Todos los derechos reservados</footer>
 
 <script>
-const SALONES=[
+var SALONES=[
   {id:'chih-1',name:'Uñas Salón y Más — Centro',city:'Chihuahua, Chih.',address:'Calle Libertad 320, Centro, Chihuahua',lat:28.6353,lng:-106.0889,artists:[
     {id:1,name:'Valentina R.',ini:'VR',spec:'Nail Art Luxury',bio:'10 años de experiencia',price:550,days:[1,2,3,4,5,6],slots:{def:['9:00','9:30','10:00','11:00','12:00','14:00','15:00','16:00'],ov:{}}},
     {id:2,name:'Camila S.',ini:'CS',spec:'Gel & Acrílicas',bio:'Especialista en extensiones',price:480,days:[1,3,5,6],slots:{def:['10:00','10:30','12:00','13:00','14:30','16:00','17:00'],ov:{}}},
@@ -369,43 +371,58 @@ const SALONES=[
   ]},
 ];
 
-const S={salon:null,date:null,dateStr:null,artist:null,time:null,calY:0,calM:0};
-const today=new Date();today.setHours(0,0,0,0);
+var S={salon:null,date:null,dateStr:null,artist:null,time:null,calY:0,calM:0};
+var today=new Date();today.setHours(0,0,0,0);
 S.calY=today.getFullYear();S.calM=today.getMonth();
 
-const dot=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
-document.addEventListener('mousemove',e=>{dot.style.left=e.clientX+'px';dot.style.top=e.clientY+'px';ring.style.left=e.clientX+'px';ring.style.top=e.clientY+'px';});
+var dot=document.getElementById('cursor'),ring=document.getElementById('cursorRing');
+document.addEventListener('mousemove',function(e){dot.style.left=e.clientX+'px';dot.style.top=e.clientY+'px';ring.style.left=e.clientX+'px';ring.style.top=e.clientY+'px';});
+
 
 document.getElementById('btnGeo').addEventListener('click',function(){
-  if(!navigator.geolocation){showMap(null,null);return;}
   var btn=document.getElementById('btnGeo');
-  btn.textContent='Buscando...';btn.disabled=true;
+  if(!navigator.geolocation){
+    document.getElementById('geoErr').style.display='block';
+    showMap(null,null);
+    return;
+  }
+  btn.textContent='Buscando…';btn.disabled=true;
+  document.getElementById('geoErr').style.display='none';
   var tid=setTimeout(function(){
     btn.textContent='Usar mi ubicación';btn.disabled=false;
     showMap(null,null);
-  },5000);
+  },12000);
   navigator.geolocation.getCurrentPosition(
-    function(p){clearTimeout(tid);btn.textContent='Usar mi ubicación';btn.disabled=false;showMap(p.coords.latitude,p.coords.longitude);},
-    function(){clearTimeout(tid);btn.textContent='Usar mi ubicación';btn.disabled=false;showMap(null,null);},
-    {timeout:5000,enableHighAccuracy:false}
+    function(pos){
+      clearTimeout(tid);
+      btn.textContent='Usar mi ubicación';btn.disabled=false;
+      showMap(pos.coords.latitude,pos.coords.longitude);
+    },
+    function(err){
+      clearTimeout(tid);
+      btn.textContent='Usar mi ubicación';btn.disabled=false;
+      if(err.code===1){
+        document.getElementById('geoErr').style.display='block';
+      }
+      showMap(null,null);
+    },
+    {enableHighAccuracy:false,timeout:12000,maximumAge:0}
   );
 });
-document.getElementById('btnSkip').addEventListener('click',()=>showMap(null,null));
+document.getElementById('btnSkip').addEventListener('click',function(){showMap(null,null);});
 
-function haversine(a,b,c,d){
-  const R=6371,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180;
-  const x=Math.sin(dL/2)**2+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)**2;
-  return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));
-}
+document.getElementById('btnSkip').addEventListener('click',function(){showMap(null,null);});
 
-let leafMap=null;
+function haversine(a,b,c,d){var R=6371,dL=(c-a)*Math.PI/180,dG=(d-b)*Math.PI/180,x=Math.sin(dL/2)*Math.sin(dL/2)+Math.cos(a*Math.PI/180)*Math.cos(c*Math.PI/180)*Math.sin(dG/2)*Math.sin(dG/2);return R*2*Math.atan2(Math.sqrt(x),Math.sqrt(1-x));}
+
+var leafMap=null;
 function showMap(lat,lng){
   document.getElementById('locCard').style.display='none';
   document.getElementById('mapWrapper').classList.add('visible');
-  let nearest=null;
+  var nearest=null;
   if(lat!==null){
-    let mn=Infinity;
-    SALONES.forEach(s=>{s._d=haversine(lat,lng,s.lat,s.lng);if(s._d<mn){mn=s._d;nearest=s;}});
+    var mn=Infinity;
+    SALONES.forEach(function(s){s._d=haversine(lat,lng,s.lat,s.lng);if(s._d<mn){mn=s._d;nearest=s;}});
     document.getElementById('mapIntro').innerHTML='El salón más cercano es <strong>'+nearest.name+'</strong> — a '+nearest._d.toFixed(1)+' km de ti.';
   } else {
     document.getElementById('mapIntro').textContent='Selecciona la sucursal de tu preferencia';
@@ -418,7 +435,7 @@ function showMap(lat,lng){
     function mkIcon(c){return L.divIcon({className:'',html:'<div style="width:13px;height:13px;border-radius:50%;background:'+c+';border:2px solid #fff;box-shadow:0 0 0 3px '+c+'55"></div>',iconSize:[13,13],iconAnchor:[6,6]});}
     SALONES.forEach(function(s){
       var isN=nearest&&s.id===nearest.id;
-      var popup='<b>'+s.name+'</b>'+s.address+'<br><small>'+s.city+'</small>'+(s._d!==undefined?'<br><span style="color:#e07898;font-size:.7rem">'+s._d.toFixed(1)+' km de ti</span>':'');
+      var popup='<b>'+s.name+'</b>'+s.address+'<br><small>'+s.city+'</small>'+(s._d!==undefined?'<br><span style="color:#e07898;font-size:.7rem">'+s._d.toFixed(1)+' km de ti</span>':''  );
       L.marker([s.lat,s.lng],{icon:mkIcon(isN?'#e07898':'#c4547a')}).addTo(leafMap).bindPopup(popup).on('click',function(){pickSalon(s.id);});
     });
     if(lat){L.circleMarker([lat,lng],{radius:6,color:'#e07898',fillColor:'#e07898',fillOpacity:.9,weight:2}).addTo(leafMap);}
@@ -433,7 +450,7 @@ function renderSalonCards(nearest){
     var isN=nearest&&s.id===nearest.id;
     var el=document.createElement('div');
     el.className='salon-card'+(isN?' selected':'');el.dataset.id=s.id;
-    el.innerHTML='<div class="sc-tag">'+s.city+'</div><div class="sc-name">'+s.name+'</div><div class="sc-addr">'+s.address+'</div>'+(s._d!==undefined?'<div class="sc-dist">'+s._d.toFixed(1)+' km de distancia</div>':'')+(isN?'<div class="sc-nearest">Más cercana ✦</div>':'');
+    el.innerHTML='<div class="sc-tag">'+s.city+'</div><div class="sc-name">'+s.name+'</div><div class="sc-addr">'+s.address+'</div>'+(s._d!==undefined?'<div class="sc-dist">'+s._d.toFixed(1)+' km de distancia</div>':''  )+(isN?'<div class="sc-nearest">Más cercana ✦</div>':'');
     el.addEventListener('click',function(){pickSalon(s.id);});
     c.appendChild(el);
   });
@@ -519,9 +536,7 @@ function goStep(n){
   });
 }
 
-document.getElementById('s1Next').addEventListener('click',function(){
-  goStep(2);renderArtists();document.getElementById('timeSec').style.display='none';S.artist=null;S.time=null;document.getElementById('s2Next').disabled=true;
-});
+document.getElementById('s1Next').addEventListener('click',function(){goStep(2);renderArtists();document.getElementById('timeSec').style.display='none';S.artist=null;S.time=null;document.getElementById('s2Next').disabled=true;});
 document.getElementById('s2Back').addEventListener('click',function(){goStep(1);});
 document.getElementById('s2Next').addEventListener('click',function(){
   goStep(3);
@@ -534,8 +549,8 @@ document.getElementById('s2Next').addEventListener('click',function(){
 document.getElementById('s3Back').addEventListener('click',function(){goStep(2);});
 document.getElementById('s3Next').addEventListener('click',function(){
   var n=document.getElementById('cName').value.trim(),p=document.getElementById('cPhone').value.trim();
-  document.getElementById('cName').style.borderColor=n?'':'#c45454';
-  document.getElementById('cPhone').style.borderColor=p?'':'#c45454';
+  document.getElementById('cName').style.borderColor=n?'':' #c45454';
+  document.getElementById('cPhone').style.borderColor=p?'':' #c45454';
   if(!n||!p){return;}
   goStep(4);
   var dl=S.date.toLocaleDateString('es-MX',{weekday:'short',day:'numeric',month:'short'});
@@ -573,7 +588,7 @@ document.getElementById('s4Pay').addEventListener('click',function(){
   var dl=S.date.toLocaleDateString('es-MX',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   var mLabel={card:'Tarjeta de crédito/débito',paypal:'PayPal',spei:'Transferencia SPEI'}[m]||'Tarjeta';
   var tot=S.artist.price+Math.round(S.artist.price*.16);
-  var html='<div class="sdr"><span class="sdr-k">Cliente</span><span class="sdr-v">'+name+'</span></div>'
+  var h='<div class="sdr"><span class="sdr-k">Cliente</span><span class="sdr-v">'+name+'</span></div>'
     +'<div class="sdr"><span class="sdr-k">Sucursal</span><span class="sdr-v">'+S.salon.name+'</span></div>'
     +'<div class="sdr"><span class="sdr-k">Fecha</span><span class="sdr-v">'+cap(dl)+'</span></div>'
     +'<div class="sdr"><span class="sdr-k">Hora</span><span class="sdr-v">'+S.time+'</span></div>'
@@ -583,7 +598,7 @@ document.getElementById('s4Pay').addEventListener('click',function(){
     +'<div class="sdr"><span class="sdr-k">Total pagado</span><span class="sdr-v" style="color:var(--rose-light)">$'+tot.toLocaleString('es-MX')+' MXN</span></div>'
     +(phone?'<div class="sdr"><span class="sdr-k">Teléfono</span><span class="sdr-v">'+phone+'</span></div>':'')
     +(email?'<div class="sdr"><span class="sdr-k">Email</span><span class="sdr-v">'+email+'</span></div>':'');
-  document.getElementById('sucDetail').innerHTML=html;
+  document.getElementById('sucDetail').innerHTML=h;
 });
 
 document.querySelectorAll('.ptab').forEach(function(b){
